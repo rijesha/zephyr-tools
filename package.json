@@ -18,34 +18,14 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:zephyr-tools.install_build_tools",
-    "onCommand:zephyr-tools.install-sdk",
-    "onCommand:zephyr-tools.set-sdk",
-    "onCommand:zephyr-tools.create-project",
-    "onCommand:zephyr-tools.build",
-    "onCommand:zephyr-tools.build-pristine",
-    "onCommand:zephyr-tools.change-board",
-    "onCommand:zephyr-tools.change-project",
-    "onCommand:zephyr-tools.flash",
-    "onCommand:zephyr-tools.flash-and-monitor",
-    "onCommand:zephyr-tools.setup-newtmgr",
-    "onCommand:zephyr-tools.monitor",
-    "onCommand:zephyr-tools.setup-monitor",
-    "onCommand:zephyr-tools.load",
-    "onCommand:zephyr-tools.load-and-monitor",
-    "onCommand:zephyr-tools.init-repo",
-    "onCommand:zephyr-tools.clean",
-    "onCommand:zephyr-tools.update",
-    "onCommand:zephyr-tools.change-runner",
-    "onTerminalProfile:zephyr-tools.terminal-profile"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "zephyr-tools.install_build_tools",
-        "title": "Zephyr Tools: Install Build Tools"
+        "command": "zephyr-tools.setup",
+        "title": "Zephyr Tools: Extension Initial Setup"
       },
       {
         "command": "zephyr-tools.install-sdk",
@@ -78,30 +58,6 @@
       {
         "command": "zephyr-tools.flash",
         "title": "Zephyr Tools: Flash"
-      },
-      {
-        "command": "zephyr-tools.flash-and-monitor",
-        "title": "Zephyr Tools: Flash and Monitor"
-      },
-      {
-        "command": "zephyr-tools.load",
-        "title": "Zephyr Tools: Load via Bootloader"
-      },
-      {
-        "command": "zephyr-tools.load-and-monitor",
-        "title": "Zephyr Tools: Load via Bootloader and Monitor"
-      },
-      {
-        "command": "zephyr-tools.setup-newtmgr",
-        "title": "Zephyr Tools: Setup Newtmgr"
-      },
-      {
-        "command": "zephyr-tools.setup-monitor",
-        "title": "Zephyr Tools: Setup Serial Monitor"
-      },
-      {
-        "command": "zephyr-tools.monitor",
-        "title": "Zephyr Tools: Serial Monitor"
       },
       {
         "command": "zephyr-tools.init-repo",

@@ -5,18 +5,6 @@
       "arch": "x64",
       "downloads": [
         {
-          "name": "zephyr-tools",
-          "filename": "zephyr-tools-0.1.7-x86_64-pc-windows-msvc.zip",
-          "url": "https://github.com/circuitdojo/zephyr-tools-cli/releases/download/0.1.7/zephyr-tools-0.1.7-x86_64-pc-windows-msvc.zip",
-          "md5": "ab0154c2923f7f89ec025edd020785e4"
-        },
-        {
-          "name": "newtmgr",
-          "filename": "newtmgr.zip",
-          "url": "https://docs.jaredwolff.com/files/newtmgr/windows/newtmgr.zip",
-          "md5": "3ed9e43ff509a54fd5010c144e45697b"
-        },
-        {
           "name": "ninja",
           "filename": "ninja-win.zip",
           "url": "https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip",
@@ -37,18 +25,6 @@
       "arch": "x64",
       "downloads": [
         {
-          "name": "zephyr-tools",
-          "filename": "zephyr-tools-0.1.7-x86_64-apple-darwin.tar.gz",
-          "url": "https://github.com/circuitdojo/zephyr-tools-cli/releases/download/0.1.7/zephyr-tools-0.1.7-x86_64-apple-darwin.tar.gz",
-          "md5": "a2eaad10e8f4e29708a9bfe4193a61ed"
-        },
-        {
-          "name": "newtmgr",
-          "filename": "newtmgr.zip",
-          "url": "https://docs.jaredwolff.com/files/newtmgr/darwin/newtmgr.zip",
-          "md5": "7a707d8e518d46d92758a7b1b87366ed"
-        },
-        {
           "name": "ninja",
           "filename": "ninja-mac.zip",
           "url": "https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-mac.zip",
@@ -67,18 +43,6 @@
       "arch": "arm64",
       "downloads": [
         {
-          "name": "zephyr-tools",
-          "filename": "zephyr-tools-0.1.7-aarch64-apple-darwin.tar.gz",
-          "url": "https://github.com/circuitdojo/zephyr-tools-cli/releases/download/0.1.7/zephyr-tools-0.1.7-aarch64-apple-darwin.tar.gz",
-          "md5": "8649a82eb65f83d90b937d3065764bbc"
-        },
-        {
-          "name": "newtmgr",
-          "filename": "newtmgr.zip",
-          "url": "https://docs.jaredwolff.com/files/newtmgr/darwin/newtmgr.zip",
-          "md5": "7a707d8e518d46d92758a7b1b87366ed"
-        },
-        {
           "name": "cmake",
           "filename": "cmake-3.22.0-macos-universal.tar.gz",
           "url": "https://github.com/Kitware/CMake/releases/download/v3.22.0/cmake-3.22.0-macos-universal.tar.gz",
@@ -92,18 +56,6 @@
     {
       "arch": "x64",
       "downloads": [
-        {
-          "name": "zephyr-tools",
-          "filename": "zephyr-tools-0.1.7-x86_64-unknown-linux-gnu.tar.gz",
-          "url": "https://github.com/circuitdojo/zephyr-tools-cli/releases/download/0.1.7/zephyr-tools-0.1.7-x86_64-unknown-linux-gnu.tar.gz",
-          "md5": "efca3005895e1437193b3b03f9abf561"
-        },
-        {
-          "name": "newtmgr",
-          "filename": "newtmgr.zip",
-          "url": "https://docs.jaredwolff.com/files/newtmgr/linux/newtmgr.zip",
-          "md5": "9900ec263d39264787903688cdefeed1"
-        },
         {
           "name": "ninja",
           "filename": "ninja-linux.zip",

@@ -19,7 +19,9 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:zephyr-tools.setup",
+    "onCommand:zephyr-tools.install_build_tools",
+    "onCommand:zephyr-tools.install-sdk",
+    "onCommand:zephyr-tools.set-sdk",
     "onCommand:zephyr-tools.create-project",
     "onCommand:zephyr-tools.build",
     "onCommand:zephyr-tools.build-pristine",
@@ -35,14 +37,23 @@
     "onCommand:zephyr-tools.init-repo",
     "onCommand:zephyr-tools.clean",
     "onCommand:zephyr-tools.update",
-    "onCommand:zephyr-tools.change-runner"
+    "onCommand:zephyr-tools.change-runner",
+    "onTerminalProfile:zephyr-tools.terminal-profile"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "zephyr-tools.setup",
-        "title": "Zephyr Tools: Setup"
+        "command": "zephyr-tools.install_build_tools",
+        "title": "Zephyr Tools: Install Build Tools"
+      },
+      {
+        "command": "zephyr-tools.install-sdk",
+        "title": "Zephyr Tools: Install/Reinstall SDK"
+      },
+      {
+        "command": "zephyr-tools.set-sdk",
+        "title": "Zephyr Tools: Set SDK"
       },
       {
         "command": "zephyr-tools.build-pristine",
@@ -108,7 +119,16 @@
         "command": "zephyr-tools.change-runner",
         "title": "Zephyr Tools: Change Runner"
       }
-    ]
+    ],
+		"terminal": {
+			"profiles": [
+				{
+					"id": "zephyr-tools.terminal-profile",
+					"icon": "terminal",
+					"title": "Zephyr Tools Terminal Profile"
+				}
+			]
+		}
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

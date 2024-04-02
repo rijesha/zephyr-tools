@@ -21,25 +21,12 @@ import { FileDownload } from "./download";
 import * as commands from "./commands";
 import * as helper from "./helper";
 
-type ManifestEnvEntry = {
-  name: string;
-  value?: string;
-  usepath: boolean;
-  append: boolean;
-  suffix?: string;
-};
-
 type CmdEntry = {
   cmd: string;
   usepath: boolean;
 };
 
-type ManifestToolchainEntry = {
-  name: string;
-  downloads: ManifestDownloadEntry[];
-};
-
-type ManifestDownloadEntry = {
+type DownloadEntry = {
   name: string;
   url: string;
   md5: string;
@@ -48,23 +35,7 @@ type ManifestDownloadEntry = {
   clearTarget?: boolean;
 };
 
-type ManifestEntry = {
-  arch: string;
-  toolchains: ManifestToolchainEntry[];
-  downloads: ManifestDownloadEntry[];
-};
-
-type Manifest = {
-  version: Number;
-  win32: ManifestEntry[];
-  darwin: ManifestEntry[];
-  linux: ManifestEntry[];
-};
-
 type ToolChainPath =   { [Name: string]: string};
-
-// Manifest data
-const manifest: Manifest = require("../manifest/manifest.json");
 
 // Platform
 let platform: NodeJS.Platform = os.platform();
@@ -105,7 +76,6 @@ export interface ProjectConfig {
 // Config for the extension
 export interface GlobalConfig {
   isSetup: boolean;
-  manifestVersion: Number;
   env: { [name: string]: string | undefined };
   platformName: string | undefined;
   platformArch: string | undefined;
@@ -154,7 +124,6 @@ export async function activate(context: vscode.ExtensionContext) {
   // Get the configuration
   config = context.globalState.get("zephyr.env") ?? {
     env: process.env,
-    manifestVersion: 0,
     isSetup: false,
     platformName: undefined,
     platformArch: undefined,
@@ -475,10 +444,7 @@ export async function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          output.appendLine("[SETUP] Zephyr setup complete!");
-
-          // Save manifest to the .zephyrtools root
-          config.manifestVersion = manifest.version;
+          output.appendLine("[SETUP] Zephyr setup complete!");;
 
           // Setup flag complete
           config.isSetup = true;
@@ -589,8 +555,8 @@ export async function activate(context: vscode.ExtensionContext) {
           FileDownload.init(path.join(toolsdir, "downloads"));
 
           let toolchainFileRawText = fs.readFileSync(selectedToolchainFile, 'utf8');
-          let toolchainMinimalDownloadEntry: ManifestDownloadEntry | undefined;
-          let toolchainArmDownloadEntry: ManifestDownloadEntry | undefined;
+          let toolchainMinimalDownloadEntry: DownloadEntry | undefined;
+          let toolchainArmDownloadEntry: DownloadEntry | undefined;
 
           let toolchainBasePath = "toolchains/zephyr-sdk-" + toolchainSelection;
           for (const line of toolchainFileRawText.trim().split('\n')) {
@@ -637,7 +603,7 @@ export async function activate(context: vscode.ExtensionContext) {
           output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainSelection} toolchain...`);
 
           // Download minimal sdk file
-          let res: boolean = await processDownload(toolchainMinimalDownloadEntry, context);
+          let res: boolean = await processDownload(toolchainMinimalDownloadEntry);
           if (!res) {
             vscode.window.showErrorMessage("Error downloading minimal toolchain file. Check output for more info.");
             return;
@@ -645,7 +611,7 @@ export async function activate(context: vscode.ExtensionContext) {
           progress.report({ increment: 5 });
 
           // Download arm sdk file
-          res = await processDownload(toolchainArmDownloadEntry, context);
+          res = await processDownload(toolchainArmDownloadEntry);
           if (!res) {
             vscode.window.showErrorMessage("Error downloading arm toolchain file. Check output for more info.");
             return;
@@ -695,12 +661,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.init-repo", async (_dest: vscode.Uri | undefined) => {
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // Get destination
       let dest = await helper.get_dest(_dest);
 
@@ -716,12 +676,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.change-project", async () => {
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // See if config is set first
       if (config.isSetup) {
         changeProject(config, context);
@@ -734,12 +688,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.change-board", async () => {
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // See if config is set first
       if (config.isSetup) {
         changeBoard(config, context);
@@ -753,12 +701,6 @@ export async function activate(context: vscode.ExtensionContext) {
   // Does a pristine zephyr build
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.build-pristine", async () => {
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // Fetch the project config
       let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
 
@@ -779,12 +721,6 @@ export async function activate(context: vscode.ExtensionContext) {
       // Fetch the project config
       let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
 
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // Do some work
       if (config.isSetup && project.isInit) {
         await build(config, project, false, context);
@@ -802,12 +738,6 @@ export async function activate(context: vscode.ExtensionContext) {
       // Fetch the project config
       let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
 
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // Flash board
       if (config.isSetup) {
         await flash(config, project);
@@ -823,12 +753,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-tools.clean", async () => {
       // Fetch the project config
       let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
 
       // Flash board
       if (config.isSetup) {
@@ -846,12 +770,6 @@ export async function activate(context: vscode.ExtensionContext) {
       // Fetch the project config
       let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
 
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
-
       // Make sure we're setup first otherwise update
       if (config.isSetup) {
         await update(config, project);
@@ -868,12 +786,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-tools.change-runner", async () => {
       // Fetch the project config
       let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
-      // Check if manifest is good
-      if (config.manifestVersion !== manifest.version) {
-        vscode.window.showErrorMessage("An update is required. Run `Zephyr Tools: Setup` command first.");
-        return;
-      }
 
       // See if config is set first
       if (config.isSetup) {
@@ -1550,7 +1462,7 @@ async function setSdk(toolchainSelection : string){
   wsConfig.selectedToolchain = toolchainSelection;
 }
 
-async function processDownload(download: ManifestDownloadEntry, context: vscode.ExtensionContext) {
+async function processDownload(download: DownloadEntry) {
   // Promisified exec
   let exec = util.promisify(cp.exec);
 

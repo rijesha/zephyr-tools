@@ -35,7 +35,7 @@ type DownloadEntry = {
   clearTarget?: boolean;
 };
 
-type ToolChainPath =   { [Name: string]: string};
+type ToolChainPath = { [Name: string]: string };
 
 // Platform
 let platform: NodeJS.Platform = os.platform();
@@ -106,10 +106,13 @@ export function getShellEnvironment() {
   if (config.env["PATH"]) {
     envPath["PATH"] = path.join(config.env["PATH"], pathdivider + envPath["PATH"]);
   }
+  if (config.env["VIRUTAL_ENV"]) {
+    envPath["VIRUTAL_ENV"] = config.env["VIRUTAL_ENV"];
+  }
   if (wsConfig.env["PATH"]) {
     envPath["PATH"] = path.join(wsConfig.env["PATH"], pathdivider + envPath["PATH"]);
   }
-  if (wsConfig.selectedToolchain !== undefined){
+  if (wsConfig.selectedToolchain !== undefined) {
     envPath["ZEPHYR_SDK_INSTALL_DIR"] = config.toolchains[wsConfig.selectedToolchain];
   }
   return envPath;
@@ -574,7 +577,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 "filename": fileName,
                 "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainSelection + "/" + fileName,
                 "md5": md5,
-                "clearTarget" : true,
+                "clearTarget": true,
               };
               if (config.platformName === "macos") {
                 toolchainMinimalDownloadEntry.cmd = [{
@@ -588,11 +591,11 @@ export async function activate(context: vscode.ExtensionContext) {
                 "filename": fileName,
                 "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainSelection + "/" + fileName,
                 "md5": md5,
-                "clearTarget" : false,
+                "clearTarget": false,
               };
             }
           }
- 
+
 
           if (toolchainArmDownloadEntry === undefined || toolchainMinimalDownloadEntry === undefined) {
             vscode.window.showErrorMessage("Error finding appropriate toolchain file");
@@ -646,16 +649,16 @@ export async function activate(context: vscode.ExtensionContext) {
       let toolchainVersionList: string[] = [];
       for (let key in config.toolchains) {
         toolchainVersionList.push(key);
-    }
+      }
       // Prompt user
       let toolchainSelection = await vscode.window.showQuickPick(toolchainVersionList, pickOptions);
-      if (toolchainSelection === undefined){
+      if (toolchainSelection === undefined) {
         return;
       }
-      
+
       setSdk(toolchainSelection);
 
-      
+
       vscode.window.showInformationMessage(`Set Zephry SDK to: ` + toolchainSelection);
     }));
 
@@ -780,7 +783,7 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  
+
   // Command for changing runner and params
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.change-runner", async () => {
@@ -956,7 +959,7 @@ export async function initRepo(config: GlobalConfig, context: vscode.ExtensionCo
       let exec = util.promisify(cp.exec);
 
       // Get listofports
-      let cmd = `west list -f {path:28}`;
+      let cmd = `west list -f {path:28} zephyr`;
       let res = await exec(cmd, { env: getShellEnvironment(), cwd: dest.fsPath });
       if (res.stderr) {
         output.append(res.stderr);
@@ -1002,43 +1005,6 @@ export async function initRepo(config: GlobalConfig, context: vscode.ExtensionCo
     output.append(text);
     vscode.window.showErrorMessage(`Zephyr Tools: Init Repo error. See output for details.`);
   }
-}
-
-async function getPort(): Promise<string | undefined> {
-  // Promisified exec
-  let exec = util.promisify(cp.exec);
-
-  // Get listofports
-  let cmd = `zephyr-tools -l`;
-  let res = await exec(cmd, { env: getShellEnvironment() });
-  if (res.stderr) {
-    output.append(res.stderr);
-    output.show();
-    return undefined;
-  }
-
-  // Get port
-  let ports = JSON.parse(res.stdout);
-
-  console.log(ports);
-
-  // Have them choose from list of ports
-  const port = await vscode.window.showQuickPick(ports, {
-    title: "Pick your serial port.",
-    placeHolder: ports[0],
-    ignoreFocusOut: true,
-  });
-
-  if (port === undefined) {
-    vscode.window.showErrorMessage("Invalid port choice.");
-    return undefined;
-  }
-
-  return port;
-}
-
-function delay(milliseconds: number) {
-  return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
 // TODO: select programmer ID if there are multiple..
@@ -1381,6 +1347,44 @@ export async function update(config: GlobalConfig, project: ProjectConfig) {
 
   await vscode.tasks.executeTask(task);
 
+  // Get zephyr BASE
+  let base = undefined;
+
+  let exec1 = util.promisify(cp.exec);
+
+  // Get listofports
+  if (vscode.workspace.workspaceFolders) {
+    cmd = `west list -f {path:28} zephyr`;
+    let cwd = vscode.workspace.workspaceFolders[0].uri.fsPath;
+    let res = await exec1(cmd, { env: getShellEnvironment(), cwd: cwd });
+    if (res.stderr) {
+      output.append(res.stderr);
+      output.show();
+    } else {
+      if (res.stdout.includes("zephyr")) {
+        base = res.stdout.trim();
+      }
+    }
+  }
+
+
+  if (base) {
+    // Install python dependencies `pip install -r zephyr/requirements.txt`
+    cmd = `pip install -r ${path.join(base, "scripts", "requirements.txt")}`;
+    exec = new vscode.ShellExecution(cmd, getShellEnvironment());
+  }
+
+
+  // Task
+  task = new vscode.Task(
+    { type: "zephyr-tools", command: taskName },
+    vscode.TaskScope.Workspace,
+    taskName,
+    "zephyr-tools",
+    exec
+  );
+
+  await vscode.tasks.executeTask(task);
   vscode.window.showInformationMessage(`Updating dependencies for project.`);
 }
 
@@ -1458,7 +1462,7 @@ async function build(
   await vscode.tasks.executeTask(task);
 }
 
-async function setSdk(toolchainSelection : string){
+async function setSdk(toolchainSelection: string) {
   wsConfig.selectedToolchain = toolchainSelection;
 }
 
@@ -1488,12 +1492,6 @@ async function processDownload(download: DownloadEntry) {
   if (!(await fs.pathExists(copytopath))) {
     await fs.mkdirp(copytopath);
   }
-
-  // Remove copy to path
-  //if (download.clearTarget !== false) {
-  //  await fs.remove(copytopath);
-  //  await fs.mkdirp(copytopath);
-  //}
 
   // Unpack and place into `$HOME/.zephyrtools`
   if (download.url.includes(".zip")) {

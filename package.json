@@ -65,7 +65,7 @@
       },
       {
         "command": "zephyr-tools.set-project",
-        "title": "Zephyr Tools: Set Project"
+        "title": "Zephyr Tools: Set Active Project"
       },
       {
         "command": "zephyr-tools.add-project",
@@ -90,6 +90,14 @@
       {
         "command": "zephyr-tools.change-runner",
         "title": "Zephyr Tools: Change Runner"
+      },
+      {
+        "command": "zephyr-tools.disable-automatic-project-target",
+        "title": "Zephyr Tools: Disable Automatic Active Project Targeting"
+      },
+      {
+        "command": "zephyr-tools.enable-automatic-project-target",
+        "title": "Zephyr Tools: Enable Automatic Active Project Targeting"
       }
     ],
 		"terminal": {
@@ -97,7 +105,7 @@
 				{
 					"id": "zephyr-tools.terminal-profile",
 					"icon": "terminal",
-					"title": "Zephyr Tools Terminal Profile"
+					"title": "Zephyr Tools Terminal"
 				}
 			]
 		}

@@ -91,6 +91,7 @@ export interface WorkspaceConfig {
   selectedToolchain: string | undefined;
   projects: ProjectConfigDictionary;
   selectedProject: string | undefined;
+  automaticProjectSelction: boolean;
 }
 
 // Pending Task
@@ -137,14 +138,44 @@ export async function activate(context: vscode.ExtensionContext) {
     toolchains: {},
   };
 
-  
+
   wsConfig = context.workspaceState.get("zephyr.env") ??
   {
     env: {},
     selectedToolchain: undefined,
-    projects : {},
+    projects: {},
     selectedProject: undefined,
+    automaticProjectSelction: true,
   };
+
+
+  context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(handleChange => {
+    if (wsConfig.automaticProjectSelction && handleChange){
+      let filePath = handleChange.document.uri.fsPath;
+
+      for (let key in wsConfig.projects) {
+        if (filePath.includes(wsConfig.projects[key].path)) {
+          vscode.window.showInformationMessage(`Active project changed to ${key}`);
+          wsConfig.selectedProject = key;
+        }
+      }
+    }
+  }));
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-tools.disable-automatic-project-target", async (dest: vscode.Uri | undefined) => {
+      wsConfig.automaticProjectSelction = false;
+      context.workspaceState.update("zephyr.env", wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-tools.enable-automatic-project-target", async (dest: vscode.Uri | undefined) => {
+      wsConfig.automaticProjectSelction = true;
+      context.workspaceState.update("zephyr.env", wsConfig);
+    })
+  );
 
   // Create new
   context.subscriptions.push(
@@ -731,7 +762,8 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showErrorMessage("Run `Zephyr Tools: Init Repo` command first.");
           return;
         }
-        await build(config, wsConfig.projects[wsConfig.selectedProject], true, context);
+        let activeProject = wsConfig.projects[wsConfig.selectedProject];
+        await build(config, activeProject, true, context);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command first.");
       }
@@ -750,7 +782,9 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showErrorMessage("Run `Zephyr Tools: Init Repo` command first.");
           return;
         }
-        await build(config, wsConfig.projects[wsConfig.selectedProject], false, context);
+        let activeProject = wsConfig.projects[wsConfig.selectedProject];
+        
+        await build(config, activeProject, false, context);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command first.");
       }
@@ -765,7 +799,11 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showErrorMessage("Select a project before trying to clean");
           return;
         }
-        await flash(config, wsConfig.projects[wsConfig.selectedProject]);
+
+
+        let activeProject = wsConfig.projects[wsConfig.selectedProject];
+        
+        await flash(config, activeProject);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Toools: Setup` command before flashing.");
@@ -782,7 +820,10 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showErrorMessage("Select a project before trying to clean");
           return;
         }
-        await clean(config, wsConfig.projects[wsConfig.selectedProject]);
+
+        let activeProject = wsConfig.projects[wsConfig.selectedProject];
+        
+        await clean(config, activeProject);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command before flashing.");
@@ -794,11 +835,14 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.update", async () => {
       if (config.isSetup) {
-        if (wsConfig.selectedProject === undefined){
+        if (wsConfig.selectedProject === undefined) {
           vscode.window.showErrorMessage("Select a project before trying to clean");
           return;
         }
-        await update(config, wsConfig.projects[wsConfig.selectedProject]);
+
+        let activeProject = wsConfig.projects[wsConfig.selectedProject];
+        
+        await update(config, activeProject);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Toools: Setup` command before flashing.");
@@ -1163,10 +1207,10 @@ async function addProject(config: GlobalConfig, context: vscode.ExtensionContext
     if (contents.includes("project(")) {
       let projectName = path.parse(projectPath).name;
       wsConfig.projects[projectName] = {
-        isInit : true,
-        path : projectPath,
-        target : projectPath,
-        name : projectName,
+        isInit: true,
+        path: projectPath,
+        target: projectPath,
+        name: projectName,
       };
       wsConfig.selectedProject = projectName;
       await context.workspaceState.update("zephyr.env", wsConfig);
@@ -1183,7 +1227,7 @@ async function addProject(config: GlobalConfig, context: vscode.ExtensionContext
 
 async function changeBoard(config: GlobalConfig, context: vscode.ExtensionContext) {
   // Get the workspace root
-  if (wsConfig.selectedProject === undefined){
+  if (wsConfig.selectedProject === undefined) {
     vscode.window.showInformationMessage(`Failed to change board, please first select a project`);
     return;
   }
@@ -1252,7 +1296,7 @@ async function changeBoard(config: GlobalConfig, context: vscode.ExtensionContex
 
 async function changeRunner(config: GlobalConfig, context: vscode.ExtensionContext) {
   // Get the workspace root
-  if (wsConfig.selectedProject === undefined){
+  if (wsConfig.selectedProject === undefined) {
     vscode.window.showInformationMessage(`Failed to change board, please first select a project`);
     return;
   }

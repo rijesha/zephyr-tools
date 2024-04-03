@@ -21,7 +21,9 @@ import { FileDownload } from "./download";
 import * as commands from "./commands";
 import * as helper from "./helper";
 
-import { HelloWorldPanel } from "./panels/HelloWorldPanel";
+import { HelloWorldPanel, ColorsViewProvider } from "./panels/HelloWorldPanel";
+import { ActiveProjectPanel } from "./panels/ActiveProjectPanel";
+import { ProjectStatusView } from "./panels/ActiveProjectTreeView";
 
 type CmdEntry = {
   cmd: string;
@@ -110,6 +112,7 @@ let config: GlobalConfig;
 let wsConfig: WorkspaceConfig;
 
 let statusBar: vscode.StatusBarItem;
+let activeProjectView = new ProjectStatusView("", "", "", "");
 
 export function getShellEnvironment() {
   let envPath = process.env;
@@ -159,16 +162,33 @@ export async function activate(context: vscode.ExtensionContext) {
       Active Project: ${wsConfig.selectedProject}\r\n
       Active Board: ${wsConfig.projects[wsConfig.selectedProject].board}\r\n
       Board Directory ${wsConfig.projects[wsConfig.selectedProject].boardRootDir} `);
-
     }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand(
-		'zephyr-tools.hello',
-		async () => {
-			vscode.window.showInformationMessage('Hello world From Zephyr Tools!');
-		}
-	));
+    'zephyr-tools.hello',
+    async () => {
+      vscode.window.showInformationMessage('Hello world From Zephyr Tools!');
+    }
+  ));
+
+  const provider = new ActiveProjectPanel(context.extensionUri);
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider("zephyrToolsActiveProject", provider));
+
+
+  const provider2 = new ColorsViewProvider(context.extensionUri);
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider("zephyrToolsStatus", provider2));
+
+
+  updateActiveProjectView();
+  vscode.window.createTreeView('zephyrToolsActiveProjectStatus', {
+    treeDataProvider: activeProjectView
+  });
+
 
   // create a new status bar item that we can now manage
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -179,9 +199,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBar);
 
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-tools.helloWorld", () => {
-      HelloWorldPanel.render(context.extensionUri);
-    }));
-  
+    HelloWorldPanel.render(context.extensionUri);
+  }));
+
 
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(handleChange => {
     if (wsConfig.automaticProjectSelction && handleChange) {
@@ -192,6 +212,7 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showInformationMessage(`Active project changed to ${key}`);
           wsConfig.selectedProject = key;
           statusBar.text = `$(megaphone) ${wsConfig.selectedProject}`;
+          updateActiveProjectView();
         }
       }
     }
@@ -1209,6 +1230,15 @@ async function setProject(config: GlobalConfig, context: vscode.ExtensionContext
   vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
 }
 
+async function updateActiveProjectView() {
+  if (wsConfig.selectedProject) {
+    activeProjectView.activeProject = wsConfig.selectedProject;
+    activeProjectView.activeBoard = wsConfig.projects[wsConfig.selectedProject].board;
+    activeProjectView.activeBoardDir = wsConfig.projects[wsConfig.selectedProject].boardRootDir;
+    activeProjectView.selectedToolchain = wsConfig.selectedToolchain;
+    activeProjectView.refresh();
+  }
+}
 
 async function addProject(config: GlobalConfig, context: vscode.ExtensionContext) {
   // Create & clear output

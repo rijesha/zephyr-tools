@@ -26,24 +26,33 @@
       "activitybar": [
         {
           "id": "package-explorer",
-          "title": "Package Explorer",
+          "title": "Zephyr Tools",
           "icon": "media/dep.svg"
         }
       ]
     },
+    
     "views": {
       "package-explorer": [
         {
-          "id": "nodeDependencies",
-          "name": "Node Dependencies",
+          "id": "zephyrToolsActiveProjectStatus",
+          "name": "Active Project",
           "icon": "media/dep.svg",
-          "contextualTitle": "Package Explorer"
-        }
-      ],
-      "explorer": [
+          "contextualTitle": "Zephyr Tools"
+        },
+        {
+          "id": "zephyrToolsActiveProject",
+          "name": "Active Project",
+          "icon": "media/dep.svg",
+          "contextualTitle": "Zephyr Tools Active Project Menu",
+          "type": "webview"
+        },
         {
           "id": "zephyrToolsStatus",
-          "name": "Zephyr Tools Status"
+          "name": "Zephyr Tools",
+          "icon": "media/dep.svg",
+          "contextualTitle": "Zephyr Tools Menu2",
+          "type": "webview"
         }
       ]
     },
@@ -53,18 +62,6 @@
         "contents": "Zephyr Tools:\n [Hello](command:zephyr-tools.hello)"
       }
     ],
-    "configuration": {
-      "title": "Zephr Tools Projects",
-      "properties": {
-        "zephyr-tools.projects": {
-          "type": "array",
-          "default": [
-            ""
-          ],
-          "description": "A list of paths to projects that Zephyr Tools will load in this workspace."
-        }
-      }
-    },
     "commands": [
       {
         "command": "zephyr-tools.hello",

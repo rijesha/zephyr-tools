@@ -107,6 +107,8 @@ let output: vscode.OutputChannel;
 let config: GlobalConfig;
 let wsConfig: WorkspaceConfig;
 
+let statusBar: vscode.StatusBarItem;
+
 export function getShellEnvironment() {
   let envPath = process.env;
   if (config.env["PATH"]) {
@@ -148,15 +150,44 @@ export async function activate(context: vscode.ExtensionContext) {
     automaticProjectSelction: true,
   };
 
+  context.subscriptions.push(vscode.commands.registerCommand("zephyr-tools.update-status", () => {
+    if (wsConfig.selectedProject) {
+      statusBar.text = `$(megaphone) ${wsConfig.selectedProject}`;
+      vscode.window.showInformationMessage(`Zephyr Tools:\r\n 
+      Active Project: ${wsConfig.selectedProject}\r\n
+      Active Board: ${wsConfig.projects[wsConfig.selectedProject].board}\r\n
+      Board Directory ${wsConfig.projects[wsConfig.selectedProject].boardRootDir} `,{ modal: true });
+
+    }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand(
+		'zephyr-tools.hello',
+		async () => {
+			vscode.window.showInformationMessage('Hello world From Zephyr Tools!');
+		}
+	));
+
+  // create a new status bar item that we can now manage
+  statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  statusBar.command = "zephyr-tools.update-status";
+  statusBar.text = `$(megaphone) ${wsConfig.selectedProject}`;
+  statusBar.tooltip = "Zephyr Tools Status";
+  statusBar.show();
+  context.subscriptions.push(statusBar);
+
+
+
 
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(handleChange => {
-    if (wsConfig.automaticProjectSelction && handleChange){
+    if (wsConfig.automaticProjectSelction && handleChange) {
       let filePath = handleChange.document.uri.fsPath;
 
       for (let key in wsConfig.projects) {
         if (filePath.includes(wsConfig.projects[key].path)) {
           vscode.window.showInformationMessage(`Active project changed to ${key}`);
           wsConfig.selectedProject = key;
+          statusBar.text = `$(megaphone) ${wsConfig.selectedProject}`;
         }
       }
     }
@@ -783,7 +814,7 @@ export async function activate(context: vscode.ExtensionContext) {
           return;
         }
         let activeProject = wsConfig.projects[wsConfig.selectedProject];
-        
+
         await build(config, activeProject, false, context);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command first.");
@@ -802,7 +833,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
         let activeProject = wsConfig.projects[wsConfig.selectedProject];
-        
+
         await flash(config, activeProject);
       } else {
         // Display an error message box to the user
@@ -822,7 +853,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         let activeProject = wsConfig.projects[wsConfig.selectedProject];
-        
+
         await clean(config, activeProject);
       } else {
         // Display an error message box to the user
@@ -841,7 +872,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         let activeProject = wsConfig.projects[wsConfig.selectedProject];
-        
+
         await update(config, activeProject);
       } else {
         // Display an error message box to the user

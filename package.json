@@ -22,19 +22,54 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "package-explorer",
+          "title": "Package Explorer",
+          "icon": "media/dep.svg"
+        }
+      ]
+    },
+    "views": {
+      "package-explorer": [
+        {
+          "id": "nodeDependencies",
+          "name": "Node Dependencies",
+          "icon": "media/dep.svg",
+          "contextualTitle": "Package Explorer"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "zephyrToolsStatus",
+          "name": "Zephyr Tools Status"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "workbench.explorer.emptyView",
+        "contents": "Zephyr Tools:\n [Hello](command:zephyr-tools.hello)"
+      }
+    ],
     "configuration": {
       "title": "Zephr Tools Projects",
       "properties": {
         "zephyr-tools.projects": {
           "type": "array",
-          "default": [""],
+          "default": [
+            ""
+          ],
           "description": "A list of paths to projects that Zephyr Tools will load in this workspace."
         }
       }
     },
-
     "commands": [
+      {
+        "command": "zephyr-tools.hello",
+        "title": "Hello World!"
+      },
       {
         "command": "zephyr-tools.setup",
         "title": "Zephyr Tools: Extension Initial Setup"
@@ -100,15 +135,15 @@
         "title": "Zephyr Tools: Enable Automatic Active Project Targeting"
       }
     ],
-		"terminal": {
-			"profiles": [
-				{
-					"id": "zephyr-tools.terminal-profile",
-					"icon": "terminal",
-					"title": "Zephyr Tools Terminal"
-				}
-			]
-		}
+    "terminal": {
+      "profiles": [
+        {
+          "id": "zephyr-tools.terminal-profile",
+          "icon": "terminal",
+          "title": "Zephyr Tools Terminal"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

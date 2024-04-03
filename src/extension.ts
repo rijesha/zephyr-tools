@@ -21,6 +21,8 @@ import { FileDownload } from "./download";
 import * as commands from "./commands";
 import * as helper from "./helper";
 
+import { HelloWorldPanel } from "./panels/HelloWorldPanel";
+
 type CmdEntry = {
   cmd: string;
   usepath: boolean;
@@ -156,7 +158,7 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage(`Zephyr Tools:\r\n 
       Active Project: ${wsConfig.selectedProject}\r\n
       Active Board: ${wsConfig.projects[wsConfig.selectedProject].board}\r\n
-      Board Directory ${wsConfig.projects[wsConfig.selectedProject].boardRootDir} `,{ modal: true });
+      Board Directory ${wsConfig.projects[wsConfig.selectedProject].boardRootDir} `);
 
     }
   }));
@@ -176,8 +178,10 @@ export async function activate(context: vscode.ExtensionContext) {
   statusBar.show();
   context.subscriptions.push(statusBar);
 
-
-
+  context.subscriptions.push(vscode.commands.registerCommand("zephyr-tools.helloWorld", () => {
+      HelloWorldPanel.render(context.extensionUri);
+    }));
+  
 
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(handleChange => {
     if (wsConfig.automaticProjectSelction && handleChange) {
@@ -736,7 +740,7 @@ export async function activate(context: vscode.ExtensionContext) {
       let dest = await helper.get_dest(_dest);
 
       // See if config is set first
-      if (config.isSetup && dest != null) {
+      if (config.isSetup && dest !== null) {
         initRepo(config, context, dest);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command first.");

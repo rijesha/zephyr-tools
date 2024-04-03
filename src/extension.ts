@@ -64,14 +64,17 @@ let toolsdir = path.join(os.homedir(), toolsfoldername);
 
 // Project specific configuration
 export interface ProjectConfig {
+  name?: string;
   board?: string;
   boardRootDir?: string;
   target?: string;
-  port?: string;
   isInit: boolean;
+  path: string;
   runner?: string;
   runnerParams?: string;
 }
+
+type ProjectConfigDictionary = { [Name: string]: ProjectConfig };
 
 // Config for the extension
 export interface GlobalConfig {
@@ -86,6 +89,8 @@ export interface GlobalConfig {
 export interface WorkspaceConfig {
   env: { [name: string]: string | undefined };
   selectedToolchain: string | undefined;
+  projects: ProjectConfigDictionary;
+  selectedProject: string | undefined;
 }
 
 // Pending Task
@@ -118,8 +123,7 @@ export function getShellEnvironment() {
   return envPath;
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+// this method is called when your extension is first activated on vscode startup
 export async function activate(context: vscode.ExtensionContext) {
   // Init task manager
   TaskManager.init();
@@ -133,10 +137,13 @@ export async function activate(context: vscode.ExtensionContext) {
     toolchains: {},
   };
 
+  
   wsConfig = context.workspaceState.get("zephyr.env") ??
   {
     env: {},
     selectedToolchain: undefined,
+    projects : {},
+    selectedProject: undefined,
   };
 
   // Create new
@@ -622,13 +629,12 @@ export async function activate(context: vscode.ExtensionContext) {
           progress.report({ increment: 10 });
 
           // Setup flag complete
-          config.isSetup = true;
           config.toolchains[toolchainSelection] = path.join(toolsdir, toolchainBasePath);
 
           // Save this informaiton to disk
           context.globalState.update("zephyr.env", config);
 
-          setSdk(toolchainSelection);
+          setSdk(toolchainSelection, context);
 
           progress.report({ increment: 100 });
           output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainSelection} complete`);
@@ -656,7 +662,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      setSdk(toolchainSelection);
+      setSdk(toolchainSelection, context);
 
 
       vscode.window.showInformationMessage(`Set Zephry SDK to: ` + toolchainSelection);
@@ -678,10 +684,22 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-tools.change-project", async () => {
+    vscode.commands.registerCommand("zephyr-tools.add-project", async () => {
       // See if config is set first
       if (config.isSetup) {
-        changeProject(config, context);
+        addProject(config, context);
+      } else {
+        // Display an error message box to the user
+        vscode.window.showErrorMessage("Run `Zephyr Toools: Setup` command first.");
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-tools.set-project", async () => {
+      // See if config is set first
+      if (config.isSetup && Object.keys(wsConfig.projects).length) {
+        setProject(config, context);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Toools: Setup` command first.");
@@ -704,15 +722,17 @@ export async function activate(context: vscode.ExtensionContext) {
   // Does a pristine zephyr build
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.build-pristine", async () => {
-      // Fetch the project config
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
-      if (config.isSetup && project.isInit) {
-        await build(config, project, true, context);
-      } else if (!project.isInit) {
-        vscode.window.showErrorMessage("Run `Zephyr Tools: Init Repo` command first.");
+      if (config.isSetup) {
+        if (wsConfig.selectedProject === undefined) {
+          vscode.window.showErrorMessage("Select a project before trying to clean");
+          return;
+        }
+        if (!wsConfig.projects[wsConfig.selectedProject].isInit) {
+          vscode.window.showErrorMessage("Run `Zephyr Tools: Init Repo` command first.");
+          return;
+        }
+        await build(config, wsConfig.projects[wsConfig.selectedProject], true, context);
       } else {
-        // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command first.");
       }
     })
@@ -721,14 +741,16 @@ export async function activate(context: vscode.ExtensionContext) {
   // Utilizes build cache (if it exists) and builds
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.build", async () => {
-      // Fetch the project config
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
-      // Do some work
-      if (config.isSetup && project.isInit) {
-        await build(config, project, false, context);
-      } else if (!project.isInit) {
-        vscode.window.showErrorMessage("Run `Zephyr Tools: Init Repo` command first.");
+      if (config.isSetup) {
+        if (wsConfig.selectedProject === undefined) {
+          vscode.window.showErrorMessage("Select a project before trying to clean");
+          return;
+        }
+        if (!wsConfig.projects[wsConfig.selectedProject].isInit) {
+          vscode.window.showErrorMessage("Run `Zephyr Tools: Init Repo` command first.");
+          return;
+        }
+        await build(config, wsConfig.projects[wsConfig.selectedProject], false, context);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command first.");
       }
@@ -738,12 +760,12 @@ export async function activate(context: vscode.ExtensionContext) {
   // Flashes Zephyr project to board
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.flash", async () => {
-      // Fetch the project config
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
-      // Flash board
       if (config.isSetup) {
-        await flash(config, project);
+        if (wsConfig.selectedProject === undefined) {
+          vscode.window.showErrorMessage("Select a project before trying to clean");
+          return;
+        }
+        await flash(config, wsConfig.projects[wsConfig.selectedProject]);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Toools: Setup` command before flashing.");
@@ -754,12 +776,13 @@ export async function activate(context: vscode.ExtensionContext) {
   // Cleans the project by removing the `build` folder
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.clean", async () => {
-      // Fetch the project config
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
       // Flash board
       if (config.isSetup) {
-        await clean(config, project);
+        if (wsConfig.selectedProject === undefined) {
+          vscode.window.showErrorMessage("Select a project before trying to clean");
+          return;
+        }
+        await clean(config, wsConfig.projects[wsConfig.selectedProject]);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Tools: Setup` command before flashing.");
@@ -770,12 +793,12 @@ export async function activate(context: vscode.ExtensionContext) {
   // Update dependencies
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.update", async () => {
-      // Fetch the project config
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
-      // Make sure we're setup first otherwise update
       if (config.isSetup) {
-        await update(config, project);
+        if (wsConfig.selectedProject === undefined){
+          vscode.window.showErrorMessage("Select a project before trying to clean");
+          return;
+        }
+        await update(config, wsConfig.projects[wsConfig.selectedProject]);
       } else {
         // Display an error message box to the user
         vscode.window.showErrorMessage("Run `Zephyr Toools: Setup` command before flashing.");
@@ -787,9 +810,6 @@ export async function activate(context: vscode.ExtensionContext) {
   // Command for changing runner and params
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-tools.change-runner", async () => {
-      // Fetch the project config
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
-
       // See if config is set first
       if (config.isSetup) {
         changeRunner(config, context);
@@ -947,7 +967,7 @@ export async function initRepo(config: GlobalConfig, context: vscode.ExtensionCo
     // Generic callback
     let done = async (data: any) => {
       // Set the isInit flag
-      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false };
+      let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? { isInit: false, path: "" };
       project.isInit = true;
       await context.workspaceState.update("zephyr.project", project);
     };
@@ -1090,111 +1110,83 @@ async function getBoardlist(folder: vscode.Uri): Promise<string[]> {
 
   return boards;
 }
-
-async function getProjectList(folder: vscode.Uri): Promise<string[]> {
-  let files = await vscode.workspace.fs.readDirectory(folder);
-  let projects: string[] = [];
-
-  while (true) {
-    let file = files.pop();
-
-    // Stop looping once done.
-    if (file === undefined) {
-      break;
-    }
-
-    if (file[0].includes("CMakeLists.txt")) {
-      // Check the filefolder
-      let filepath = vscode.Uri.joinPath(folder, file[0]);
-      let contents = await vscode.workspace.openTextDocument(filepath).then(document => {
-        return document.getText();
-      });
-
-      if (contents.includes("project(")) {
-        let project = path.parse(filepath.fsPath);
-        projects.push(project.dir);
-      }
-    } else if (file[0].includes("build") || file[0].includes(".git")) {
-      // Don't do anything
-    } else if (file[1] === vscode.FileType.Directory) {
-      let path = vscode.Uri.joinPath(folder, file[0]);
-      let subfolders = await vscode.workspace.fs.readDirectory(path);
-
-      for (let { index, value } of subfolders.map((value, index) => ({
-        index,
-        value,
-      }))) {
-        subfolders[index][0] = vscode.Uri.parse(`${file[0]}/${subfolders[index][0]}`).fsPath;
-        // console.log(subfolders[index][0]);
-      }
-
-      files = files.concat(subfolders);
-    }
-  }
-
-  return projects;
-}
-
-async function changeProject(config: GlobalConfig, context: vscode.ExtensionContext) {
-  // Fetch the project config
-  let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? {
-    isInit: false,
+async function setProject(config: GlobalConfig, context: vscode.ExtensionContext) {
+  const pickOptions: vscode.QuickPickOptions = {
+    ignoreFocusOut: true,
+    placeHolder: "Select Project",
   };
 
+  let projectList: string[] = [];
+  for (let key in wsConfig.projects) {
+    projectList.push(key);
+  }
+  // Prompt user
+  let selectedProject = await vscode.window.showQuickPick(projectList, pickOptions);
+  if (selectedProject === undefined) {
+    return;
+  }
+  wsConfig.selectedProject = selectedProject;
+  await context.workspaceState.update("zephyr.env", wsConfig);
+  vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
+}
+
+
+async function addProject(config: GlobalConfig, context: vscode.ExtensionContext) {
   // Create & clear output
   if (output === undefined) {
     output = vscode.window.createOutputChannel("Zephyr Tools");
   }
 
-  // Get the workspace root
-  let rootPath;
-  let rootPaths = vscode.workspace.workspaceFolders;
-  if (rootPaths === undefined) {
-    return;
-  } else {
-    rootPath = rootPaths[0].uri;
+  const dialogOptions: vscode.OpenDialogOptions = {
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    title: "Select project folder."
+  };
+
+  // Open file picker for destination directory
+  let open = await vscode.window.showOpenDialog(dialogOptions);
+  if (open === undefined) {
+    vscode.window.showErrorMessage('Failed to provide a valid target folder.');
+    return null;
   }
 
-  // Promisified exec
-  let exec = util.promisify(cp.exec);
-
-  // Clear output before beginning
-  output.clear();
-
-  // Get manifest path `west config manifest.path`
-  let cmd = "west config manifest.path";
-  let res = await exec(cmd, { env: getShellEnvironment(), cwd: rootPath.fsPath });
-  if (res.stderr) {
-    output.append(res.stderr);
-    output.show();
-    return;
-  }
+  let projectPath = open[0].fsPath;
+  let projectCmakePath = projectPath + "/CMakeLists.txt";
 
   // Find all CMakeLists.txt files with `project(` in them
-  let files = await getProjectList(vscode.Uri.joinPath(rootPath, res.stdout.trim()));
-  console.log(files);
+  if (fs.pathExistsSync(projectCmakePath)) {
+    let contents = await vscode.workspace.openTextDocument(projectCmakePath).then(document => {
+      return document.getText();
+    });
 
-  // Turn that into a project selection
-  const result = await vscode.window.showQuickPick(files, {
-    placeHolder: "Pick your target project..",
-    ignoreFocusOut: true,
-  });
-
-  if (result) {
-    console.log("Changing project to " + result);
-    vscode.window.showInformationMessage(`Project changed to ${result}`);
-    project.target = result;
-    await context.workspaceState.update("zephyr.project", project);
+    if (contents.includes("project(")) {
+      let projectName = path.parse(projectPath).name;
+      wsConfig.projects[projectName] = {
+        isInit : true,
+        path : projectPath,
+        target : projectPath,
+        name : projectName,
+      };
+      wsConfig.selectedProject = projectName;
+      await context.workspaceState.update("zephyr.env", wsConfig);
+    } else {
+      vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a correct CMake File?`)
+      return;
+    }
+  } else {
+    vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a CMakeLists.txt File?`)
+    return;
   }
+  vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);
 }
 
 async function changeBoard(config: GlobalConfig, context: vscode.ExtensionContext) {
-  // TODO: iterative function to find all possible board options
-  let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? {
-    isInit: false,
-  };
-
   // Get the workspace root
+  if (wsConfig.selectedProject === undefined){
+    vscode.window.showInformationMessage(`Failed to change board, please first select a project`);
+    return;
+  }
   let rootPath;
   let rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
@@ -1241,7 +1233,6 @@ async function changeBoard(config: GlobalConfig, context: vscode.ExtensionContex
 
   if (boardDirResult) {
     console.log("Changing board dir to " + boardDirResult);
-    project.boardRootDir = path.parse(boardDirResult).dir;
     boards = boards.concat(await getBoardlist(vscode.Uri.file(boardDirResult)));
     // Prompt which board to use
     const result = await vscode.window.showQuickPick(boards, {
@@ -1252,19 +1243,20 @@ async function changeBoard(config: GlobalConfig, context: vscode.ExtensionContex
     if (result) {
       console.log("Changing board to " + result);
       vscode.window.showInformationMessage(`Board changed to ${result}`);
-      project.board = result;
-      await context.workspaceState.update("zephyr.project", project);
+      wsConfig.projects[wsConfig.selectedProject].boardRootDir = path.parse(boardDirResult).dir;
+      wsConfig.projects[wsConfig.selectedProject].board = result;
+      await context.workspaceState.update("zephyr.env", wsConfig);
     }
   }
 }
 
 async function changeRunner(config: GlobalConfig, context: vscode.ExtensionContext) {
-  // TODO: iterative function to find all possible board options
-  let project: ProjectConfig = context.workspaceState.get("zephyr.project") ?? {
-    isInit: false,
-  };
-
   // Get the workspace root
+  if (wsConfig.selectedProject === undefined){
+    vscode.window.showInformationMessage(`Failed to change board, please first select a project`);
+    return;
+  }
+
   let rootPath;
   let rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
@@ -1296,20 +1288,20 @@ async function changeRunner(config: GlobalConfig, context: vscode.ExtensionConte
       args = " with args: " + argsResult;
 
       // Set runner args
-      project.runnerParams = argsResult;
+      wsConfig.projects[wsConfig.selectedProject].runnerParams = argsResult;
     } else {
-      project.runnerParams = undefined;
+      wsConfig.projects[wsConfig.selectedProject].runnerParams = undefined;
     }
 
     console.log("Changing runner to " + result + args);
     vscode.window.showInformationMessage(`Runner changed to ${result}${args}`);
 
     if (result === "default") {
-      project.runner = undefined;
+      wsConfig.projects[wsConfig.selectedProject].runner = undefined;
     } else {
-      project.runner = result;
+      wsConfig.projects[wsConfig.selectedProject].runner = result;
     }
-    await context.workspaceState.update("zephyr.project", project);
+    await context.workspaceState.update("zephyr.env", wsConfig);
   }
 }
 
@@ -1413,7 +1405,7 @@ async function build(
   }
 
   if (project.target === undefined) {
-    await changeProject(config, context);
+    await addProject(config, context);
 
     // Check again..
     if (project.target === undefined) {
@@ -1462,8 +1454,9 @@ async function build(
   await vscode.tasks.executeTask(task);
 }
 
-async function setSdk(toolchainSelection: string) {
+async function setSdk(toolchainSelection: string, context: vscode.ExtensionContext) {
   wsConfig.selectedToolchain = toolchainSelection;
+  context.workspaceState.update("zephyr.env", wsConfig);
 }
 
 async function processDownload(download: DownloadEntry) {

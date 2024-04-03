@@ -7,7 +7,7 @@
   "publisher": "circuitdojo",
   "icon": "img/bulb.png",
   "engines": {
-    "vscode": "^1.52.0",
+    "vscode": "^1.75.0",
     "node": ">=16"
   },
   "repository": {
@@ -22,6 +22,18 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+
+    "configuration": {
+      "title": "Zephr Tools Projects",
+      "properties": {
+        "zephyr-tools.projects": {
+          "type": "array",
+          "default": [""],
+          "description": "A list of paths to projects that Zephyr Tools will load in this workspace."
+        }
+      }
+    },
+
     "commands": [
       {
         "command": "zephyr-tools.setup",
@@ -52,8 +64,12 @@
         "title": "Zephyr Tools: Create Project"
       },
       {
-        "command": "zephyr-tools.change-project",
-        "title": "Zephyr Tools: Change Project"
+        "command": "zephyr-tools.set-project",
+        "title": "Zephyr Tools: Set Project"
+      },
+      {
+        "command": "zephyr-tools.add-project",
+        "title": "Zephyr Tools: Add Project"
       },
       {
         "command": "zephyr-tools.flash",
